@@ -291,7 +291,7 @@ let s = cargar() || { waId: null, celular: "", mensajes: [] };
 function cargar() { try { return JSON.parse(localStorage.getItem(CLAVE)); } catch { return null; } }
 function guardar() {
   try {
-    const ligeros = s.mensajes.map((m) => ({ ...m, img: undefined })); // las imágenes no se guardan
+    const ligeros = s.mensajes.map((m) => ({ ...m, img: undefined, adjuntos: m.adjuntos?.map((a) => ({ nombre: a.nombre })) })); // las imágenes no se guardan
     localStorage.setItem(CLAVE, JSON.stringify({ ...s, mensajes: ligeros }));
   } catch {}
 }
@@ -333,7 +333,8 @@ function nodo(m, previo, siguiente) {
   else if (m.archivo) html += `<div class="doc"><b>${m.archivo.toLowerCase().endsWith(".pdf") ? "PDF" : "IMG"}</b>${escapar(m.archivo)}</div>`;
   if (m.texto) html += formato(m.texto);
   for (const a of m.adjuntos ?? []) {
-    html += `<a class="tarjeta-pdf" href="${escapar(a.url)}" target="_blank" rel="noopener"><span class="ico-pdf">PDF</span><span class="txt"><b>Su propuesta preliminar</b><small>Toque para abrirla o descargarla</small></span><svg class="ir" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></a>`;
+    if (!a.url) { html += `<div class="tarjeta-pdf"><span class="ico-pdf">PDF</span><span class="txt"><b>Propuesta preliminar enviada</b><small>Si la necesita de nuevo, pídasela a Luz</small></span></div>`; continue; }
+    html += `<a class="tarjeta-pdf" href="${a.url}" download="${escapar(a.nombre)}" target="_blank" rel="noopener"><span class="ico-pdf">PDF</span><span class="txt"><b>Su propuesta preliminar</b><small>Toque para abrirla o descargarla</small></span><svg class="ir" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></a>`;
   }
   b.innerHTML = html;
   grupo.appendChild(b);
@@ -354,6 +355,15 @@ function agregar(m) {
   bajar();
 }
 function bajar() { requestAnimationFrame(() => chat.scrollTop = chat.scrollHeight); }
+
+// El PDF llega como archivo dentro de la respuesta: se abre desde el propio navegador, sin enlaces externos
+function archivo(a) {
+  try {
+    const bin = atob(a.base64), b = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);
+    return { nombre: a.nombre, url: URL.createObjectURL(new Blob([b], { type: a.tipo || "application/pdf" })) };
+  } catch { return { nombre: a.nombre }; }
+}
 
 let burbujaEscribiendo = null;
 function escribiendo(si) {
@@ -388,7 +398,7 @@ async function despachar() {
     const j = await r.json().catch(() => ({}));
     escribiendo(false);
     if (!r.ok) agregar({ dir: "in", texto: j.error || "No pude responder en este momento. Intente de nuevo en un minuto.", ts: Date.now(), error: true });
-    else if (j.respuesta || j.adjuntos?.length) agregar({ dir: "in", texto: j.respuesta || "", adjuntos: j.adjuntos ?? [], ts: Date.now() });
+    else if (j.respuesta || j.adjuntos?.length) agregar({ dir: "in", texto: j.respuesta || "", adjuntos: (j.adjuntos ?? []).map(archivo), ts: Date.now() });
   } catch {
     escribiendo(false);
     agregar({ dir: "in", texto: "Sin conexión. Revise su internet; su mensaje no se perdió, envíelo de nuevo.", ts: Date.now(), error: true });
