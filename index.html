@@ -93,6 +93,14 @@
   .burbuja img.adjunto { display: block; max-width: 100%; max-height: 260px; border-radius: 14px; margin: 2px 0 6px; }
   .burbuja .doc { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin: 2px 0 6px; background: rgba(255, 255, 255, .18); border-radius: 12px; font-weight: 600; font-size: 14px; }
   .in .burbuja .doc { background: #fff; }
+  /* Propuesta preliminar en PDF que entrega Luz */
+  .tarjeta-pdf { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 12px; background: #fff; border: 1px solid var(--line); border-radius: 16px; text-decoration: none; color: var(--ink); white-space: normal; }
+  .tarjeta-pdf:active { background: var(--soft); }
+  .tarjeta-pdf .ico-pdf { width: 40px; height: 48px; flex: none; border-radius: 8px; background: linear-gradient(160deg, var(--s-amber), var(--s-orange)); color: #fff; display: grid; place-items: center; font: 700 11px/1 var(--f-text); letter-spacing: .04em; }
+  .tarjeta-pdf .txt { min-width: 0; flex: 1; }
+  .tarjeta-pdf b { display: block; font-size: 14.5px; line-height: 1.3; }
+  .tarjeta-pdf small { display: block; font-size: 12.5px; color: var(--mute); margin-top: 2px; }
+  .tarjeta-pdf .ir { color: var(--s-cta); flex: none; }
   .burbuja .doc b { flex: none; white-space: nowrap; background: #fff; color: var(--s-cta); font-size: 10.5px; padding: 3px 6px; border-radius: 6px; }
   .hora.oculta { display: none; }
   .hora { font-size: 11.5px; color: var(--mute); margin: 3px 6px 0; }
@@ -324,6 +332,9 @@ function nodo(m, previo, siguiente) {
   if (m.img) html += `<img class="adjunto" src="${m.img}" alt="Imagen enviada">`;
   else if (m.archivo) html += `<div class="doc"><b>${m.archivo.toLowerCase().endsWith(".pdf") ? "PDF" : "IMG"}</b>${escapar(m.archivo)}</div>`;
   if (m.texto) html += formato(m.texto);
+  for (const a of m.adjuntos ?? []) {
+    html += `<a class="tarjeta-pdf" href="${escapar(a.url)}" target="_blank" rel="noopener"><span class="ico-pdf">PDF</span><span class="txt"><b>Su propuesta preliminar</b><small>Toque para abrirla o descargarla</small></span><svg class="ir" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></a>`;
+  }
   b.innerHTML = html;
   grupo.appendChild(b);
   const h = document.createElement("div");
@@ -377,7 +388,7 @@ async function despachar() {
     const j = await r.json().catch(() => ({}));
     escribiendo(false);
     if (!r.ok) agregar({ dir: "in", texto: j.error || "No pude responder en este momento. Intente de nuevo en un minuto.", ts: Date.now(), error: true });
-    else if (j.respuesta) agregar({ dir: "in", texto: j.respuesta, ts: Date.now() });
+    else if (j.respuesta || j.adjuntos?.length) agregar({ dir: "in", texto: j.respuesta || "", adjuntos: j.adjuntos ?? [], ts: Date.now() });
   } catch {
     escribiendo(false);
     agregar({ dir: "in", texto: "Sin conexión. Revise su internet; su mensaje no se perdió, envíelo de nuevo.", ts: Date.now(), error: true });
